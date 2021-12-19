@@ -8,7 +8,7 @@ I'll use this for WordPress themes (integration instructions will be posted late
 ## Razorblade vs BladeOne
 
 - Razorblade follows the 8.x spec and doesn't add custom directives or functionality
-- Razorblade supports <x-component></x-component>
+- Razorblade supports `<x-component></x-component>`
 - BladeOne is better supported and battle tested longer than this project was
 - BladeOne supports namespaces
 
