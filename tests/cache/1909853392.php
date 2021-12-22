@@ -38,3 +38,28 @@
 
 <p>works?</p>
 <?php array_key_exists('hello', $this->placeholderStack) ? $this->placeholderStack['hello']() : $this->e(""); ?>
+
+<?php
+    $this->componentStack[] = ['view' => 'button', 'args' =>  array (
+  'attributes' => 
+  array (
+    'class' => 'red',
+  ),
+), 'slot' => function() {
+?>hello<?php
+    }];
+    $__component = array_shift($this->componentStack);
+    ob_start();
+    $__component['slot']();
+    $slot = ob_get_clean();
+
+    $__stack = [];
+    foreach(end($this->slotStack) as $__v) {
+        ob_start();
+        $__v();
+        array_push($__stack, ob_get_clean());
+    }
+
+    $__args = array_merge($__component['args'], ['slot' => $slot], $__stack);
+    $this->view($__component['view'], $__args);
+?>

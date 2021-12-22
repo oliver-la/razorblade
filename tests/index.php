@@ -3,4 +3,4 @@
 require '../engine.php';
 
 $engine = new RazorBlade();
-$engine->render('home');
+$engine->view('home');

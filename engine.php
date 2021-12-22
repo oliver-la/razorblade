@@ -4,6 +4,7 @@ class RazorBlade
 {
     public $baseDir;
     public $partialsPath = '/partials';
+    public $cacheDir = '/cache';
     public $extension = 'php';
 
     private $buffer;
@@ -14,9 +15,21 @@ class RazorBlade
     public $placeholderStack = [];
     public $placeholderStackLatestKey = [];
 
+    public $stacksStack = [];
+    public $stacksStackOnce = false;
+
+    public $componentStack = [];
+    public $slotStack = [];
+
     public function __construct()
     {
         $this->baseDir = getcwd();
+        if (!is_dir($this->baseDir . $this->partialsPath)) {
+            mkdir($this->baseDir . $this->partialsPath);
+        }
+        if (!is_dir($this->baseDir . $this->cacheDir)) {
+            mkdir($this->baseDir . $this->cacheDir);
+        }
     }
 
     public function e($input)
@@ -59,6 +72,46 @@ class RazorBlade
         return $input[0];
     }
 
+    public function parseElement($input)
+    {
+        /*
+            0 => full statement
+            1 => element name
+            2 => element attributes as space-separated string
+        */
+        $isClosingTag = strpos($input[1], '/') === 0;
+
+        if ($isClosingTag) {
+            return $this->handleEndComponent(null);
+        }
+
+        $name = substr($input[1], 2);
+        $atts = trim($input[2]);
+        if ($atts) {
+            preg_match_all('/(\:)?([\w-]+)\s*=\s*"([^"]*)"(?:\s|$)|([\w-]+)\s*=\s*\'([^\']*)\'(?:\s|$)|([\w-]+)\s*=\s*([^\s\'"]+)(?:\s|$)|"([^"]*)"(?:\s|$)|\'([^\']*)\'(?:\s|$)|(\S+)(?:\s|$)/', $atts, $matches, PREG_SET_ORDER);
+        } else {
+            $matches = [];
+        }
+
+        $props = [];
+        $attributes = [];
+
+        foreach ($matches as $match) {
+            if ($match[1] === ':') {
+                $props = array_merge($props, [$match[2] => $match[3]]);
+            } else {
+                $attributes = array_merge($attributes, [$match[2] => $match[3]]);
+            }
+        }
+
+        $args = $props;
+        $args['attributes'] = $attributes;
+
+        $args = var_export($args, true);
+
+        return $this->handleComponent("'{$name}', {$args}");
+    }
+
     public function parse($content)
     {
         return preg_replace_callback_array([
@@ -68,11 +121,13 @@ class RazorBlade
             '/(@?{!!)(.+?)(!!})/' => [$this, 'echoRaw'],
             // stolen from BladeOne project, since this is way over the top of my head.
             // Ignore any statements that start with two @@, equivalent to wrapping all single-@ statements in a @verbatim block.
-            '/\B(?<!@)@(\w+)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x' => [$this, 'parseStatement']
+            '/\B(?<!@)@(\w+)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x' => [$this, 'parseStatement'],
+            // <x-component></x-component>
+            '/<(\/?x\-.*?)(?![\w-])([^\>\/]*(?:\/(?!\>)[^\>\/]*)*?)(?:(\/)\>|\>(?:([^\<]*+(?:\<(?!\/\2\>)[^\<]*+)*+)<\/\2\>)?)/' => [$this, 'parseElement']
         ], $content);
     }
 
-    public function render($view)
+    public function render($view, $silent = false)
     {
         $relativePath = str_replace('.', '/', $view);
         $absolutePath = $this->baseDir . '/' . $relativePath . '.' . $this->extension;
@@ -81,13 +136,14 @@ class RazorBlade
             $absolutePath = $this->baseDir . $this->partialsPath . '/' . $relativePath . '.' . $this->extension;
 
             if (!file_exists($absolutePath)) {
+                if ($silent) {
+                    return;
+                }
                 throw new Exception('View not found');
             }
         }
 
-        ob_start();
-        include($absolutePath);
-        $this->buffer = ob_get_clean();
+        $this->buffer = file_get_contents($absolutePath);
 
         $this->buffer = $this->parse($this->buffer);
 
@@ -95,8 +151,23 @@ class RazorBlade
             throw new Exception('Not all statements are terminated in view.');
         }
 
-        file_put_contents('cache.php', $this->buffer);
-        require 'cache.php';
+        $checksum = crc32($view);
+        $outputPath = $this->baseDir . $this->cacheDir . "/$checksum.php";
+        file_put_contents($outputPath, $this->buffer);
+
+        return $outputPath;
+    }
+
+    public function view($view, $args = [], $silent = false)
+    {
+        $__view = $this->render($view, $silent);
+        if ($__view) {
+            if (array_key_exists('attributes', $args)) {
+                $args['attributes'] = new RazorBladeAttributeBag($args['attributes']);
+            }
+            extract($args);
+            require "{$__view}";
+        }
     }
 
     private function registerStrayTag($tag)
@@ -360,5 +431,211 @@ class RazorBlade
     public function handleEndPhp($__args)
     {
         return "?>";
+    }
+
+    public function handleInclude($__args)
+    {
+        return "<?php \$this->view($__args); ?>";
+    }
+
+    public function handleIncludeIf($__args)
+    {
+        return "<?php \$this->view($__args, true); ?>";
+    }
+
+    public function handleIncludeWhen($__args)
+    {
+        $__args = explode(',', $__args);
+        $__boolean = array_pop($__args);
+        $__args = implode(',', $__args);
+        return "<?php if({$__boolean}) { \$this->view({$__args}); } ?>";
+    }
+
+    public function handleIncludeUnless($__args)
+    {
+        $__args = explode(',', $__args);
+        $__boolean = array_pop($__args);
+        $__args = implode(',', $__args);
+        return "<?php if(!({$__boolean})) { \$this->view({$__args}); } ?>";
+    }
+
+    public function handleIncludeFirst($__args)
+    {
+        $__args = explode(',', $__args);
+        $__views = trim(array_pop($__args), " \t\n\r\0\x0B[]");
+        $__views = explode(',', $__views);
+        $__args = implode(',', $__args);
+
+        foreach ($__views as $__view) {
+            if (is_string($this->render($this->trimQuotes($__view), true))) {
+                break;
+            }
+        }
+
+        return "<?php \$this->view($__view, $__args); ?>";
+    }
+
+    public function handleEach($__args)
+    {
+        $__args = explode(',', $__args);
+        $__view = array_pop($__args);
+        $__iterable = array_pop($__args);
+        $__var = $this->trimQuotes(array_pop($__args));
+        $__view_empty = "''";
+        if (isset($__args[0])) {
+            $__view_empty = $__args[0];
+        }
+        return <<<EOS
+        <?php
+            if(count({$__iterable})):
+                \$this->addLoop({$__iterable});
+                foreach({$__iterable} as \$$__var):
+                    \$loop = \$this->incrementLoop();
+                    \$this->view($__view);
+            else:
+                if({$__view_empty} !== ''):
+                    \$this->view($__view_empty);
+                endif;
+            endif;
+        ?>
+        EOS;
+    }
+
+    public function handleStack($__args)
+    {
+        return "<?php foreach(\$this->stacksStack[$__args] as \$__stack) { \$__stack(); } ?>";
+    }
+
+    public function handlePush($__args)
+    {
+        if (!$this->stacksStackOnce) {
+            $this->registerStrayTag('push');
+            return "<?php if(!array_key_exists($__args, \$this->stacksStack)) { \$this->stacksStack[$__args] = []; } \$this->stacksStack[$__args][] = function() { ?>";
+        }
+    }
+
+    public function handleEndPush($__args)
+    {
+        if (!$this->stacksStackOnce) {
+            $this->unregisterStrayTag('push');
+            return "<?php }; ?>";
+        }
+    }
+
+    public function handlePrepend($__args)
+    {
+        if (!$this->stacksStackOnce) {
+            $this->registerStrayTag('prepend');
+            return "<?php if(!array_key_exists($__args, \$this->stacksStack)) { \$this->stacksStack[$__args] = []; } array_unshift(\$this->stacksStack[$__args], function() { ?>";
+        }
+    }
+
+    public function handleEndPrepend($__args)
+    {
+        if (!$this->stacksStackOnce) {
+            $this->unregisterStrayTag('prepend');
+            return "<?php }); ?>";
+        }
+    }
+
+    public function handleOnce($__args)
+    {
+        $this->stacksStackOnce = true;
+        return '';
+    }
+
+    public function handleEndOnce($__args)
+    {
+        $this->stacksStackOnce = false;
+        return '';
+    }
+
+    public function handleExtends($__args)
+    {
+        return $this->handleInclude($__args);
+    }
+
+    public function handleComponent($__args)
+    {
+        $__args = explode(',', $__args);
+        $__view = array_shift($__args);
+        $__args = implode(',', $__args) ?: '[]';
+        $this->slotStack[] = [];
+        return <<<EOS
+        <?php
+            \$this->componentStack[] = ['view' => {$__view}, 'args' => {$__args}, 'slot' => function() {
+        ?>
+        EOS;
+    }
+
+    public function handleEndComponent($__args)
+    {
+        return <<<EOS
+        <?php
+            }];
+            \$__component = array_shift(\$this->componentStack);
+            ob_start();
+            \$__component['slot']();
+            \$slot = ob_get_clean();
+
+            \$__stack = [];
+            foreach(end(\$this->slotStack) as \$__v) {
+                ob_start();
+                \$__v();
+                array_push(\$__stack, ob_get_clean());
+            }
+
+            \$__args = array_merge(\$__component['args'], ['slot' => \$slot], \$__stack);
+            \$this->view(\$__component['view'], \$__args);
+        ?>
+        EOS;
+    }
+
+    public function handleSlot($__args)
+    {
+        return "<?php end(\$this->slotStack)[{$__args}] = function() { ?>";
+    }
+
+    public function handleEndSlot($__args)
+    {
+        return "<?php }; ?>";
+    }
+}
+
+class RazorBladeAttributeBag
+{
+    public $attributes;
+
+    public function __construct($attributes = [])
+    {
+        $this->attributes = $attributes;
+    }
+
+    public function __toString()
+    {
+        return $this->merge([]);
+    }
+
+    public function merge($with)
+    {
+        $source = $this->attributes;
+
+        foreach ($with as $key=>$value) {
+            if (array_key_exists($key, $source)) {
+                $source[$key] .= ' ' . $value;
+            } else {
+                $source[$key] = $value;
+            }
+        }
+
+        $map = [];
+        foreach ($source as $key=>$value) {
+            if (!$value) {
+                $map[] = $key;
+            }
+            $map[] = $key . '="' . $value . '"';
+        }
+
+        return implode(' ', $map);
     }
 }

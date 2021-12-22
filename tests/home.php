@@ -38,3 +38,5 @@
 
 <p>works?</p>
 @yield('hello')
+
+<x-button class="red">hello</x-button>
