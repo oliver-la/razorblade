@@ -14,7 +14,6 @@ I'll use this for WordPress themes (integration instructions will be posted late
 
 ## Unsupported methods (and won't ever be)
 
-- `view()` -> please use `->render()`
 - `Blade::withoutDoubleEncoding();`
 - Any `Illuminate\Support` (including Fascades `Js::from`) classes, and other Laravel specific methods
 - `@auth` and `@guest` (you can still implement them yourself if required)
