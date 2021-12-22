@@ -21,3 +21,97 @@ I'll use this for WordPress themes (integration instructions will be posted late
 - Component Classes, Component Methods and Component Namespaces (Razorblade supports standalone component files only)
 - Service injection
 - All form methods (you can still implement them yourself if required)
+
+## Test Cases
+
+[] {{ }}
+  [] Escaping works
+  [] Variables can be used
+  [] Functions can be called
+  [] Strings can be used ({{ 'hello' }})
+  [] Can be escaped by prefixing it with an at-sign
+[] {!! !!}
+  [] Does not escape anything
+  [] Variables can be used
+  [] Functions can be called
+  [] Strings can be used ({{ 'hello' }})
+  [] Can be escaped by prefixing it with an at-sign
+[] {{-- --}}
+[] General statement tests
+  [] Can be escaped using an at-sign
+  [] Are only parsed from files, never database or user supplied input
+[] Statements
+  [] verbatim
+  [] if
+    [] else
+    [] elseif
+    [] endif
+  [] unless
+    [] endunless
+  [] isset
+    [] endisset
+  [] empty
+    [] endempty
+  [] hasSection
+    [] sectionMissing
+  [] switch
+    [] case
+    [] break
+    [] default
+    [] endswitch
+  [] for
+    [] endfor
+  [] foreach
+    [] endforeach
+  [] forelse
+    [] empty
+    [] endforelse
+  [] while
+    [] endwhile
+  [] continue
+  [] continue with condition
+  [] break with condition
+  [] $loop variable
+    [] parent
+    [] countables
+    [] uncountables (while)
+  [] class
+  [] include
+    [] with args
+  [] includeif
+    [] with args
+  [] includeWhen
+    [] with args
+  [] includeUnless
+    [] with args
+  [] includeFirst
+    [] with args
+  [] each
+    [] with empty view
+  [] push
+    [] once
+    [] endpush
+  [] stack
+  [] component
+    [] XHTML syntax (`<x-button>`)
+      [] with attributes
+      [] merge attributes
+      [] append css classes
+      [] props
+    [] with args
+    [] slot
+  [] section
+    [] endsection
+    [] yield
+    [] show
+    [] parent
+  [] layout
+    [] slot
+    
+## ToDo
+
+[] Implement scoped slots (@props)
+[] Expose API to allow for custom statements
+[] Implement pipes
+[] Implement comment block
+[] Implement verbatim statement
