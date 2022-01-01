@@ -1,0 +1,16 @@
+{
+    "name": "oliver-la/razorblade",
+    "description": "Zero-dependency, standalone compiler for blade templates",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "oliver-la",
+            "email": "contact@oliver.la"
+        }
+    ],
+    "require": {},
+    "autoload": {
+        "classmap": ["razorblade.php"]
+    }
+}

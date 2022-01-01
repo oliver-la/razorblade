@@ -1,2 +1,4 @@
 examples/.cache
 .vscode
+
+/vendor/
