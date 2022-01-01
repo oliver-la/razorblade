@@ -7,7 +7,7 @@ class RazorBlade
     public $cacheDir = '/cache';
     public $extension = 'php';
 
-    public $forceCompile = false;
+    public $forceCompile = true;
 
     private $buffer;
 
@@ -47,7 +47,7 @@ class RazorBlade
 
     public function e($input)
     {
-        echo htmlentities($input);
+        echo htmlspecialchars($input, ENT_QUOTES, 'UTF-8', true);
     }
 
     public function echoEscaped($input)
@@ -68,13 +68,18 @@ class RazorBlade
         return "<?php echo({$input[2]}); ?>";
     }
 
-    public function noop($input)
+    public function echoComment($input)
     {
         if (strpos($input[1], '@') === 0) {
             return trim($input[0], '@');
         }
 
         return "";
+    }
+
+    public function noop($input)
+    {
+        return '<?php echo(htmlspecialchars_decode("' . htmlspecialchars($input[2], ENT_QUOTES, 'UTF-8', true) . '")); ?>';
     }
 
     public function parseStatement($input)
@@ -138,11 +143,13 @@ class RazorBlade
     {
         return preg_replace_callback_array([
             // "{{-- this is a comment --}}" but leave "@{{-- this is a comment --}}" alone
-            '/(@?{{--)(.+?)(--}})/s' => [$this, 'noop'],
+            '/(@?{{--)(.+?)(--}})/s' => [$this, 'echoComment'],
+            // @verbatim (can be escaped with @@verbatim and @@endverbatim)
+            '/(?<!@)(@verbatim)(.+?)(@endverbatim)/s' => [$this, 'noop'],
             // "{{ time() }}" but leave "@{{ time() }}" alone
-            '/(@?{{)(.+?)(}})/' => [$this, 'echoEscaped'],
+            '/(@?{{)(.+?)(}})/s' => [$this, 'echoEscaped'],
             // "{!! time() !!}" but leave "@{!! time() !!}" alone
-            '/(@?{!!)(.+?)(!!})/' => [$this, 'echoRaw'],
+            '/(@?{!!)(.+?)(!!})/s' => [$this, 'echoRaw'],
             // stolen from BladeOne project, since this is way over the top of my head.
             // Ignore any statements that start with two @@, equivalent to wrapping all single-@ statements in a @verbatim block.
             '/\B(?<!@)@(\w+)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x' => [$this, 'parseStatement'],

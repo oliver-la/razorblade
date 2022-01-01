@@ -33,11 +33,12 @@
 @endforeach
 
 @section('hello')
-<p>hello from the other side</p>
+<p>hello fromss the other side</p>
 @show
 
 <p>works?</p>
 @yield('hello')
 
-
+@verbatim
 <x-button class="red">hello</x-button>
+@endverbatim
