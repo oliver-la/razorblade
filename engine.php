@@ -3,7 +3,7 @@
 class RazorBlade
 {
     public $baseDir;
-    public $partialsPath = '/partials';
+    public $partialPaths = [];
     public $cacheDir = '/cache';
     public $extension = 'php';
 
@@ -21,12 +21,23 @@ class RazorBlade
     public $componentStack = [];
     public $slotStack = [];
 
-    public function __construct()
+    public function __construct($basedir = null, $partialsdir = ['/partials'], $cachedir = '/cache', $extension = 'php')
     {
-        $this->baseDir = getcwd();
-        if (!is_dir($this->baseDir . $this->partialsPath)) {
-            mkdir($this->baseDir . $this->partialsPath);
+        if (is_string($partialsdir)) {
+            $partialsdir = [$partialsdir];
         }
+
+        $this->baseDir = $basedir ?? getcwd();
+        $this->partialPaths = $partialsdir;
+        $this->cacheDir = $cachedir;
+        $this->extension = $extension;
+
+        foreach ($this->partialPaths as $partialPath) {
+            if (!is_dir($this->baseDir . $partialPath)) {
+                mkdir($this->baseDir . $partialPath);
+            }
+        }
+
         if (!is_dir($this->baseDir . $this->cacheDir)) {
             mkdir($this->baseDir . $this->cacheDir);
         }
@@ -123,24 +134,28 @@ class RazorBlade
             // Ignore any statements that start with two @@, equivalent to wrapping all single-@ statements in a @verbatim block.
             '/\B(?<!@)@(\w+)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x' => [$this, 'parseStatement'],
             // <x-component></x-component>
-            '/<(\/?x\-.*?)(?![\w-])([^\>\/]*(?:\/(?!\>)[^\>\/]*)*?)(?:(\/)\>|\>(?:([^\<]*+(?:\<(?!\/\2\>)[^\<]*+)*+)<\/\2\>)?)/' => [$this, 'parseElement']
+            '/<(\/?x\-.*?)(?![\w\-\.])([^\>\/]*(?:\/(?!\>)[^\>\/]*)*?)(?:(\/)\>|\>(?:([^\<]*+(?:\<(?!\/\2\>)[^\<]*+)*+)<\/\2\>)?)/' => [$this, 'parseElement']
         ], $content);
     }
 
     public function render($view, $silent = false)
     {
         $relativePath = str_replace('.', '/', $view);
-        $absolutePath = $this->baseDir . '/' . $relativePath . '.' . $this->extension;
+        $absolutePath = null;
 
-        if (!file_exists($absolutePath)) {
-            $absolutePath = $this->baseDir . $this->partialsPath . '/' . $relativePath . '.' . $this->extension;
+        foreach ($this->partialPaths as $partialPath) {
+            $partialPath = rtrim($partialPath, '/') . '/';
+            $absolutePath = $this->baseDir . $partialPath . $relativePath . '.' . $this->extension;
 
             if (!file_exists($absolutePath)) {
-                if ($silent) {
-                    return;
-                }
-                throw new Exception('View not found');
+                $absolutePath = null;
+            } else {
+                break;
             }
+        }
+
+        if (!$silent && $absolutePath === null) {
+            throw new Exception(sprintf('View %s not found', $view));
         }
 
         $this->buffer = file_get_contents($absolutePath);
