@@ -7,7 +7,7 @@ class RazorBlade
     public $cacheDir = '/cache';
     public $extension = 'php';
 
-    public $forceCompile = true;
+    public $forceCompile = false;
 
     private $buffer;
 
