@@ -27,25 +27,25 @@ I'll use this for WordPress themes (integration instructions will be posted late
 - [ ] {{ }}
   - [ ] Escaping works
   - [ ] Variables can be used
-  - [ ] Functions can be called
+  - [x] Functions can be called
   - [ ] Strings can be used ({{ 'hello' }})
-  - [ ] Can be escaped by prefixing it with an at-sign
+  - [x] Can be escaped by prefixing it with an at-sign
 - [ ] {!! !!}
   - [ ] Does not escape anything
   - [ ] Variables can be used
-  - [ ] Functions can be called
+  - [x] Functions can be called
   - [ ] Strings can be used ({{ 'hello' }})
-  - [ ] Can be escaped by prefixing it with an at-sign
+  - [x] Can be escaped by prefixing it with an at-sign
 - [ ] {{-- --}}
 - [ ] General statement tests
-  - [ ] Can be escaped using an at-sign
+  - [x] Can be escaped using an at-sign
   - [ ] Are only parsed from files, never database or user supplied input
 - [ ] Statements
-  - [ ] verbatim
-  - [ ] if
+  - [x] verbatim
+  - [x] if
   - [ ] else
   - [ ] elseif
-  - [ ] endif
+  - [x] endif
   - [ ] unless
   - [ ] endunless
   - [ ] isset
@@ -61,8 +61,8 @@ I'll use this for WordPress themes (integration instructions will be posted late
   - [ ] endswitch
   - [ ] for
   - [ ] endfor
-  - [ ] foreach
-  - [ ] endforeach
+  - [x] foreach
+  - [x] endforeach
   - [ ] forelse
   - [ ] empty
   - [ ] endforelse
@@ -93,17 +93,17 @@ I'll use this for WordPress themes (integration instructions will be posted late
   - [ ] endpush
   - [ ] stack
   - [ ] component
-  - [ ] XHTML syntax (`<x-button>`)
-  - [ ] with attributes
-  - [ ] merge attributes
-  - [ ] append css classes
+  - [x] XHTML syntax (`<x-button>`)
+  - [x] with attributes
+  - [x] merge attributes
+  - [x] append css classes
   - [ ] props
   - [ ] with args
   - [ ] slot
-  - [ ] section
-  - [ ] endsection
-  - [ ] yield
-  - [ ] show
+  - [x] section
+  - [x] endsection
+  - [x] yield
+  - [x] show
   - [ ] parent
   - [ ] layout
   - [ ] slot
@@ -113,5 +113,5 @@ I'll use this for WordPress themes (integration instructions will be posted late
 - [ ] Implement scoped slots (@props)
 - [ ] Expose API to allow for custom statements
 - [ ] Implement pipes
-- [ ] Implement comment block
-- [ ] Implement verbatim statement
+- [x] Implement comment block
+- [x] Implement verbatim statement
