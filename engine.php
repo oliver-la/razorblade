@@ -7,6 +7,8 @@ class RazorBlade
     public $cacheDir = '/cache';
     public $extension = 'php';
 
+    public $forceCompile = false;
+
     private $buffer;
 
     private $strayTags = [];
@@ -21,13 +23,13 @@ class RazorBlade
     public $componentStack = [];
     public $slotStack = [];
 
-    public function __construct($basedir = null, $partialsdir = ['/partials'], $cachedir = '/cache', $extension = 'php')
+    public function __construct($basedir, $partialsdir, $cachedir = '/cache', $extension = 'php')
     {
         if (is_string($partialsdir)) {
             $partialsdir = [$partialsdir];
         }
 
-        $this->baseDir = $basedir ?? getcwd();
+        $this->baseDir = $basedir;
         $this->partialPaths = $partialsdir;
         $this->cacheDir = $cachedir;
         $this->extension = $extension;
@@ -64,6 +66,15 @@ class RazorBlade
         }
 
         return "<?php echo({$input[2]}); ?>";
+    }
+
+    public function noop($input)
+    {
+        if (strpos($input[1], '@') === 0) {
+            return trim($input[0], '@');
+        }
+
+        return "";
     }
 
     public function parseStatement($input)
@@ -126,6 +137,8 @@ class RazorBlade
     public function parse($content)
     {
         return preg_replace_callback_array([
+            // "{{-- this is a comment --}}" but leave "@{{-- this is a comment --}}" alone
+            '/(@?{{--)(.+?)(--}})/s' => [$this, 'noop'],
             // "{{ time() }}" but leave "@{{ time() }}" alone
             '/(@?{{)(.+?)(}})/' => [$this, 'echoEscaped'],
             // "{!! time() !!}" but leave "@{!! time() !!}" alone
@@ -158,6 +171,16 @@ class RazorBlade
             throw new Exception(sprintf('View %s not found', $view));
         }
 
+        $mtime = filemtime($absolutePath);
+        $checksum = md5($absolutePath);
+        $outputPath = $this->baseDir . $this->cacheDir . "/$checksum.php";
+
+        if (!$this->forceCompile) {
+            if ($mtime === filemtime($outputPath)) {
+                return $outputPath;
+            }
+        }
+
         $this->buffer = file_get_contents($absolutePath);
 
         $this->buffer = $this->parse($this->buffer);
@@ -166,9 +189,10 @@ class RazorBlade
             throw new Exception('Not all statements are terminated in view.');
         }
 
-        $checksum = crc32($view);
-        $outputPath = $this->baseDir . $this->cacheDir . "/$checksum.php";
+        $this->buffer = '<?php if(!isset($this)) die("This file may not be accessed directly."); ?>' . PHP_EOL . $this->buffer;
+
         file_put_contents($outputPath, $this->buffer);
+        touch($outputPath, $mtime);
 
         return $outputPath;
     }
@@ -575,9 +599,10 @@ class RazorBlade
         $__args = explode(',', $__args);
         $__view = array_shift($__args);
         $__args = implode(',', $__args) ?: '[]';
-        $this->slotStack[] = [];
+
         return <<<EOS
         <?php
+            \$this->slotStack[] = [];
             \$this->componentStack[] = ['view' => {$__view}, 'args' => {$__args}, 'slot' => function() {
         ?>
         EOS;

@@ -2,5 +2,5 @@
 
 require '../engine.php';
 
-$engine = new RazorBlade();
+$engine = new RazorBlade(__DIR__, ['/', '/partials'], '/../cache');
 $engine->view('home');
