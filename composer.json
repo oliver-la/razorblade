@@ -11,6 +11,6 @@
     ],
     "require": {},
     "autoload": {
-        "classmap": ["razorblade.php"]
+        "classmap": ["class-razorblade.php"]
     }
 }
