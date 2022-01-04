@@ -112,6 +112,8 @@ class RazorBlade
             return $this->handleEndComponent(null);
         }
 
+        $selfClosing = (isset($input[3]));
+
         $name = substr($input[1], 2);
         $atts = trim($input[2]);
         if ($atts) {
@@ -136,7 +138,7 @@ class RazorBlade
 
         $args = var_export($args, true);
 
-        return $this->handleComponent("'{$name}', {$args}");
+        return $this->handleComponent("'{$name}', {$args}") . ($selfClosing ? $this->handleEndComponent(null) : '');
     }
 
     public function parse($content)
